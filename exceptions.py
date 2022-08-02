@@ -52,7 +52,3 @@ class IncorrectHomeworkStatus(Exception):
             )
         else:
             return "Недокументированный статус домашней работы."
-
-
-class IncorrectResponse(Exception):
-    """Исключение неверного результата запроса."""

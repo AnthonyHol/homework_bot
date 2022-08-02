@@ -56,9 +56,7 @@ class MockResponseGET:
 
 class MockTelegramBot:
     def __init__(self, token=None, random_timestamp=None, **kwargs):
-        assert (
-            token is not None
-        ), "Проверьте, что вы передали токен бота Telegram"
+        assert token is not None, "Проверьте, что вы передали токен бота Telegram"
         self.random_timestamp = random_timestamp
 
     def send_message(self, chat_id=None, text=None, **kwargs):
@@ -67,8 +65,7 @@ class MockTelegramBot:
             "сообщения ботом Telegram"
         )
         assert text is not None, (
-            "Проверьте, что вы передали text= при отправке "
-            "сообщения ботом Telegram"
+            "Проверьте, что вы передали text= при отправке " "сообщения ботом Telegram"
         )
         return self.random_timestamp
 
@@ -161,9 +158,7 @@ class TestHomework:
 
     def test_logger(self, monkeypatch, random_timestamp):
         def mock_telegram_bot(*args, **kwargs):
-            return MockTelegramBot(
-                *args, random_timestamp=random_timestamp, **kwargs
-            )
+            return MockTelegramBot(*args, random_timestamp=random_timestamp, **kwargs)
 
         monkeypatch.setattr(telegram, "Bot", mock_telegram_bot)
 
@@ -175,9 +170,7 @@ class TestHomework:
 
     def test_send_message(self, monkeypatch, random_timestamp):
         def mock_telegram_bot(*args, **kwargs):
-            return MockTelegramBot(
-                *args, random_timestamp=random_timestamp, **kwargs
-            )
+            return MockTelegramBot(*args, random_timestamp=random_timestamp, **kwargs)
 
         monkeypatch.setattr(telegram, "Bot", mock_telegram_bot)
 
@@ -313,9 +306,7 @@ class TestHomework:
 
             def valid_response_json():
                 data = {
-                    "homeworks": [
-                        {"homework_name": "hw123", "status": "approved"}
-                    ],
+                    "homeworks": [{"homework_name": "hw123", "status": "approved"}],
                     "current_date": random_timestamp,
                 }
                 return data
@@ -349,9 +340,7 @@ class TestHomework:
 
             def valid_response_json():
                 data = {
-                    "homeworks": [
-                        {"homework_name": "hw123", "status": "unknown"}
-                    ],
+                    "homeworks": [{"homework_name": "hw123", "status": "unknown"}],
                     "current_date": random_timestamp,
                 }
                 return data
@@ -522,9 +511,7 @@ class TestHomework:
             def valid_response_json():
                 data = [
                     {
-                        "homeworks": [
-                            {"homework_name": "hw123", "status": "approved"}
-                        ],
+                        "homeworks": [{"homework_name": "hw123", "status": "approved"}],
                         "current_date": random_timestamp,
                     }
                 ]

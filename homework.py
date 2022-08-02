@@ -3,7 +3,6 @@ import os
 import sys
 import time
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional
 
 import requests
 import telegram
@@ -13,7 +12,6 @@ from exceptions import (
     IncorrectHomeworkStatus,
     IncorrectStatusResponseCode,
     NoExistToken,
-    IncorrectResponse,
 )
 
 load_dotenv()
@@ -26,26 +24,26 @@ logger.addHandler(handler)
 handler.setFormatter(formatter)
 
 
-PRACTICUM_TOKEN: Optional[str] = os.getenv("PRACTICUM_TOKEN")
-TELEGRAM_TOKEN: Optional[str] = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID: Optional[str] = os.getenv("TELEGRAM_CHAT_ID")
+PRACTICUM_TOKEN = os.getenv("PRACTICUM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-RETRY_TIME: int = 600
-ENDPOINT: str = "https://practicum.yandex.ru/api/user_api/homework_statuses/"
-HEADERS: dict[str, str] = {"Authorization": f"OAuth {PRACTICUM_TOKEN}"}
+RETRY_TIME = 600
+ENDPOINT = "https://practicum.yandex.ru/api/user_api/homework_statuses/"
+HEADERS = {"Authorization": f"OAuth {PRACTICUM_TOKEN}"}
 
 
-HOMEWORK_STATUSES: dict[str, str] = {
+HOMEWORK_STATUSES = {
     "approved": "Работа проверена: ревьюеру всё понравилось. Ура!",
     "reviewing": "Работа взята на проверку ревьюером.",
     "rejected": "Работа проверена: у ревьюера есть замечания.",
 }
 
 
-def check_tokens() -> bool:
+def check_tokens():
     """Ф-я проверки токенов."""
     logger.info('Запущена функция "check_tokens"')
-    tokens: tuple[str, str, str] = (
+    tokens = (
         "PRACTICUM_TOKEN",
         "TELEGRAM_TOKEN",
         "TELEGRAM_CHAT_ID",
@@ -71,16 +69,16 @@ def get_bot():
 
 
 def get_api_answer(
-    current_timestamp: int,
-) -> Dict[str, str]:
+    current_timestamp,
+):
     """Ф-я получения ответа API.
 
     Принимает текущий timestamp, возвращает словарь с результатом запроса.
     """
     logger.info('Запущена функция "get_api_answer"')
 
-    timestamp: int = current_timestamp or int(time.time())
-    params: dict[str, int] = {"from_date": timestamp}
+    timestamp = current_timestamp or int(time.time())
+    params = {"from_date": timestamp}
 
     homework_statuses = requests.get(ENDPOINT, headers=HEADERS, params=params)
     if not homework_statuses.status_code == HTTPStatus.OK:
@@ -102,20 +100,20 @@ def get_api_answer(
     return homework_statuses.json()
 
 
-def check_response(response) -> List[Any]:
+def check_response(response):
     """Ф-я проверки корректности ответа на запрос.
 
     Принимает результат запроса. Возвращает список домашних работ.
     """
-    sum_message: str = ''
-    message: str = ''
+    sum_message = ""
+    message = ""
 
     logger.info('Запущена функция "check_response"')
-    if not isinstance(response, Dict):
-        message = f'Запрос вернул результат типа не Dict, а {type(response)}.'
-        sum_message = f'{sum_message}\n {message}'
+    if not isinstance(response, dict):
+        message = f"Запрос вернул результат типа не Dict, а {type(response)}."
+        sum_message = f"{sum_message}\n {message}"
         logging.error(message)
-        raise IncorrectResponse(message)
+        raise TypeError(message)
 
     if "homeworks" not in response.keys():
         message = 'Ответ не содержит ключа "homeworks".'
@@ -123,23 +121,23 @@ def check_response(response) -> List[Any]:
         logging.error(message)
         raise KeyError(message)
 
-    if not isinstance(response.get('homeworks'), List):
+    if not isinstance(response.get("homeworks"), list):
         message = '"homeworks" не является списком.'
-        sum_message = f'{sum_message}\n {message}'
+        sum_message = f"{sum_message}\n {message}"
         logging.error(message)
-        raise IncorrectResponse(message)
+        raise TypeError(message)
 
-    if sum_message.replace('\n', ''):
+    if sum_message.replace("\n", ""):
         send_message(get_bot(), sum_message)
 
-    result: Optional[list] = response.get('homeworks')
+    result = response.get("homeworks")
     if not result:
         result = []
 
     return result
 
 
-def parse_status(homework: dict[str, str]) -> str:
+def parse_status(homework):
     """Ф-я извлечения из информации о конкретной домашней работе ее статуса.
 
     Принимает один элемент из списка домашних работ.
@@ -152,10 +150,10 @@ def parse_status(homework: dict[str, str]) -> str:
             logger.error(f"Отсутствует ожидаемый ключ {key}")
             raise KeyError(f"Отсутствует ожидаемый ключ {key}")
 
-    homework_name: str = homework["homework_name"]
-    homework_status: str = homework["status"]
+    homework_name = homework["homework_name"]
+    homework_status = homework["status"]
     try:
-        verdict: str = HOMEWORK_STATUSES[homework_status]
+        verdict = HOMEWORK_STATUSES[homework_status]
     except Exception as error:
         logger.error(f"Недокументированный статус домашней работы({error})")
         raise IncorrectHomeworkStatus(error)
@@ -163,7 +161,7 @@ def parse_status(homework: dict[str, str]) -> str:
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
-def send_message(bot: telegram.bot.Bot, message: str) -> None:
+def send_message(bot, message):
     """Ф-я отправки сообщения ботом в Телеграм.
 
     Принимает бота и сообщение.
@@ -185,13 +183,13 @@ def main() -> None:
     if check_tokens():
         logger.debug("Токены прошли проверку.")
         bot = get_bot()
-        current_timestamp: int = int(time.time())
+        current_timestamp = int(time.time())
 
         while True:
-            response: Dict[str, str] = get_api_answer(current_timestamp)
+            response = get_api_answer(current_timestamp)
             logger.debug(f'Ф-я "get_api_answer" вернула: \n{response}\n')
             try:
-                homeworks: List[Any] = check_response(response)
+                homeworks = check_response(response)
                 if len(homeworks) != 0:
                     current_status: str = parse_status(homeworks[0])
                     send_message(bot, current_status)
