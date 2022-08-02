@@ -13,6 +13,7 @@ from exceptions import (
     IncorrectHomeworkStatus,
     IncorrectStatusResponseCode,
     NoExistToken,
+    IncorrectResponse,
 )
 
 load_dotenv()
@@ -106,15 +107,15 @@ def check_response(response) -> List[Any]:
 
     Принимает результат запроса. Возвращает список домашних работ.
     """
-    sum_message: str = ""
-    message: str = ""
+    sum_message: str = ''
+    message: str = ''
 
     logger.info('Запущена функция "check_response"')
     if not isinstance(response, Dict):
-        message = f"Запрос вернул результат типа не Dict, а {type(response)}."
-        sum_message = f"{sum_message}\n {message}"
+        message = f'Запрос вернул результат типа не Dict, а {type(response)}.'
+        sum_message = f'{sum_message}\n {message}'
         logging.error(message)
-        raise TypeError(message)
+        raise IncorrectResponse(message)
 
     if "homeworks" not in response.keys():
         message = 'Ответ не содержит ключа "homeworks".'
@@ -122,16 +123,16 @@ def check_response(response) -> List[Any]:
         logging.error(message)
         raise KeyError(message)
 
-    if not isinstance(response.get("homeworks"), List):
+    if not isinstance(response.get('homeworks'), List):
         message = '"homeworks" не является списком.'
-        sum_message = f"{sum_message}\n {message}"
+        sum_message = f'{sum_message}\n {message}'
         logging.error(message)
-        raise TypeError(message)
+        raise IncorrectResponse(message)
 
-    if sum_message.replace("\n", ""):
+    if sum_message.replace('\n', ''):
         send_message(get_bot(), sum_message)
 
-    result: Optional[list] = response.get("homeworks")
+    result: Optional[list] = response.get('homeworks')
     if not result:
         result = []
 
