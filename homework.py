@@ -61,7 +61,7 @@ def get_bot():
     """Ф-я получения бота."""
     logger.info('Запущена функция "get_bot"')
     try:
-        bot: telegram.bot.Bot = telegram.Bot(token=TELEGRAM_TOKEN)
+        bot = telegram.Bot(token=TELEGRAM_TOKEN)
 
         logger.debug("Подключение к боту успешно")
         return bot
@@ -183,7 +183,7 @@ def main() -> None:
     """Основная логика работы бота."""
     if check_tokens():
         logger.debug("Токены прошли проверку.")
-        bot: telegram.bot.Bot = get_bot()
+        bot = get_bot()
         current_timestamp: int = int(time.time())
 
         while True:
