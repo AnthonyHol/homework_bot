@@ -1,5 +1,5 @@
 class NoExistToken(Exception):
-    """Исключение, когда не задано значения для токена."""
+    """Возникает, когда не задано значения для токена."""
 
     def __init__(self, *args) -> None:
         """Инициализирует NoExistToken."""
@@ -17,7 +17,7 @@ class NoExistToken(Exception):
 
 
 class IncorrectStatusResponseCode(Exception):
-    """Исключение, когда запрос вернул неверный статус-код."""
+    """Возникает, когда запрос вернул неверный статус-код."""
 
     def __init__(self, *args) -> None:
         """Инициализирует IncorrectStatusResponseCode."""
@@ -35,7 +35,7 @@ class IncorrectStatusResponseCode(Exception):
 
 
 class IncorrectHomeworkStatus(Exception):
-    """Исключение недокументированного статуса домашней работы."""
+    """Возникает для недокументированного статуса домашней работы."""
 
     def __init__(self, *args) -> None:
         """Инициализирует IncorrectHomeworkStatus."""
@@ -47,15 +47,13 @@ class IncorrectHomeworkStatus(Exception):
     def __str__(self) -> str:
         """Формирует строковое представление IncorrectStatusResponseCode."""
         if self.message:
-            return (
-                f"Недокументированный статус домашней работы: {self.message}."
-            )
+            return f"Недокументированный статус домашней работы: {self.message}."
         else:
             return "Недокументированный статус домашней работы."
 
 
 class APIRequestException(Exception):
-    """Исключение ошибки при запросе к API."""
+    """Возникает при ошибке при запросе к API."""
 
     def __init__(self, *args) -> None:
         """Инициализирует APIRequestError."""
@@ -67,6 +65,24 @@ class APIRequestException(Exception):
     def __str__(self) -> str:
         """Формирует строковое представление APIRequestError."""
         if self.message:
-            return f"Ошибка при запросе к API: {self.message}."
+            return f"Ошибка при обработке запросе к API. Запрос: {self.message}."
         else:
-            return "Ошибка при запросе к API."
+            return "Ошибка при обработке запроса к API."
+
+
+class JSONDecodeException(Exception):
+    """Возникает при ошибке при преобразовании JSON."""
+
+    def __init__(self, *args) -> None:
+        """Инициализирует JSONDecodeException."""
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self) -> str:
+        """Формирует строковое представление JSONDecodeException."""
+        if self.message:
+            return f"Ошибка при преобразовании JSON из: {self.message}."
+        else:
+            return "Ошибка при преобразовании JSON."

@@ -1,3 +1,4 @@
+import json as simplejson
 import logging
 import os
 import sys
@@ -13,6 +14,7 @@ from exceptions import (
     APIRequestException,
     IncorrectHomeworkStatus,
     IncorrectStatusResponseCode,
+    JSONDecodeException,
     NoExistToken,
 )
 
@@ -57,15 +59,19 @@ def check_tokens() -> bool:
             no_valid_tokens.append(name)
 
     if no_valid_tokens:
-        logger.critical(f'Не задано значение для {",".join(no_valid_tokens)}')
+        logger.critical(f'Не задано значение для {", ".join(no_valid_tokens)}')
 
-    return bool(PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID)
+    return PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID
 
 
 def get_api_answer(current_timestamp: int) -> dict:
     """Ф-я получения ответа API.
 
-    Принимает текущий timestamp, возвращает словарь с результатом запроса.
+    Args:
+        current_timestamp (:obj:`int`): текущая временная метка
+
+    Returns:
+        :obj:`dict`: словарь с результатом запроса.
     """
     logger.info('Запущена функция "get_api_answer"')
 
@@ -77,23 +83,27 @@ def get_api_answer(current_timestamp: int) -> dict:
             PRACTICUM_ENDPOINT, headers=PRACTICUM_HEADERS, params=params
         )
 
+    except RequestException as exc:
+        raise APIRequestException(f"{homework_statuses.text}") from exc
+
+    try:
         if homework_statuses.status_code != HTTPStatus.OK:
-            logger.error(
-                f"Запрос вернул неверный статус-код:"
-                f"{homework_statuses.status_code}."
-            )
             raise IncorrectStatusResponseCode(homework_statuses.status_code)
+
         return homework_statuses.json()
 
-    except RequestException as error:
-        logger.error(f"Ошибка при запросе к API: {error}.")
-        raise APIRequestException(error)
+    except simplejson.JSONDecodeError as exc:
+        raise JSONDecodeException(homework_statuses) from exc
 
 
-def check_response(response: dict):
+def check_response(response: dict) -> list:
     """Ф-я проверки корректности ответа на запрос.
 
-    Принимает результат запроса. Возвращает список домашних работ.
+    Args:
+        response (:obj:`dict`): результат запроса
+
+    Returns:
+        :obj:`list`: список домашних работ.
     """
     logger.info('Запущена функция "check_response"')
 
@@ -115,16 +125,19 @@ def check_response(response: dict):
         raise TypeError(message)
 
     if len(result) == 0:
-        logging.debug('Список "homeworks"пуст.')
+        logging.debug('Список "homeworks" пуст.')
 
     return result
 
 
-def parse_status(homework: list) -> str:
+def parse_status(homework: dict) -> str:
     """Ф-я извлечения из информации о конкретной домашней работе ее статуса.
 
-    Принимает один элемент из списка домашних работ.
-    Возвращает строку с вердиктом.
+    Args:
+        response (:obj:`dict`): один элемент из списка домашних работ
+
+    Returns:
+        :obj:`str`: строка с вердиктом.
     """
     logger.info('Запущена функция "parse_status"')
 
@@ -150,7 +163,9 @@ def parse_status(homework: list) -> str:
 def send_message(bot: telegram.Bot, message: str) -> None:
     """Ф-я отправки сообщения ботом в Телеграм.
 
-    Принимает бота и сообщение.
+    Args:
+        response (:obj:`telegram.Bot`): объект бот
+        message (:obj:`str`): сообщение для отправления.
     """
     logger.info('Запущена функция "send_message"')
 
@@ -171,50 +186,43 @@ def send_message(bot: telegram.Bot, message: str) -> None:
 def main() -> None:
     """Основная логика работы бота."""
     try:
-        if check_tokens():
-            logger.debug("Токены прошли проверку.")
-            bot = telegram.Bot(token=TELEGRAM_TOKEN)
-            logger.debug("Подключение к боту успешно")
-            current_timestamp = int(time.time())
-
-            while True:
-                response = get_api_answer(current_timestamp)
-                logger.debug(f'Ф-я "get_api_answer" вернула: \n{response}\n')
-                try:
-                    homeworks = check_response(response)
-                    if len(homeworks) != 0:
-                        current_status: str = parse_status(homeworks[0])
-                        send_message(bot, current_status)
-                        logger.debug(
-                            f'Ф-я "parse_status" вернула "{current_status}"'
-                        )
-                        current_timestamp = int(time.time())
-                    else:
-                        logger.debug("Ничего нового...")
-
-                except Exception as error:
-                    logger.error(f"Сбой в работе программы: {error}")
-
-                else:
-                    continue
-
-                time.sleep(TELEGRAM_RETRY_TIME)
-        else:
+        if not check_tokens():
             logger.critical(
                 "Были переданы не все требуемые переменные окружения"
             )
             raise NoExistToken()
 
-    except IncorrectStatusResponseCode as error:
-        logger.error(error)
-        send_message(bot, error)
+        logger.debug("Токены прошли проверку.")
+        bot = telegram.Bot(token=TELEGRAM_TOKEN)
+        logger.debug("Подключение к боту успешно")
+        current_timestamp: int = int(time.time())
+        last_status: str = ""
 
-    except IncorrectHomeworkStatus as error:
-        logger.error(error)
-        send_message(bot, error)
+        while True:
+            response = get_api_answer(current_timestamp)
+            logger.debug(f'Ф-я "get_api_answer" вернула: \n{response}\n')
+            homeworks = check_response(response)
+
+            if len(homeworks) != 0:
+                current_status: str = parse_status(homeworks[0])
+                if current_status != last_status:
+                    send_message(bot, current_status)
+                    logger.debug(
+                        f'Ф-я "parse_status" вернула "{current_status}"'
+                    )
+                last_status = current_status
+                current_timestamp = int(time.time())
+            else:
+                logger.debug("Ничего нового...")
+
+            time.sleep(TELEGRAM_RETRY_TIME)
 
     except telegram.error.TelegramError as error:
-        logger.error(f"Не удалось подключиться к боту. Ошибка: {error}")
+        logger.error(f"Не удалось подключиться к боту. Ошибка: {error}.")
+
+    except Exception as error:
+        logger.error(error)
+        send_message(bot, error)
 
 
 if __name__ == "__main__":
