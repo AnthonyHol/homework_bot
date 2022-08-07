@@ -183,25 +183,36 @@ def send_message(bot: telegram.Bot, message: str) -> None:
         logger.info(f'Успешно отправлено сообщение: "{message}"')
 
 
+def get_bot() -> telegram.Bot:
+    """Ф-я создания бота.
+
+    Returns:
+        :obj:`telegram.Bot`: объект бот.
+    """
+    try:
+        bot = telegram.Bot(token=TELEGRAM_TOKEN)
+        logger.debug("Подключение к боту успешно")
+        return bot
+
+    except telegram.error.TelegramError as error:
+        logger.exception(f"Не удалось подключиться к боту. Ошибка: {error}.")
+
+
 def main() -> None:
     """Основная логика работы бота."""
-
     if not check_tokens():
         logger.critical("Были переданы не все требуемые переменные окружения")
         raise NoExistToken()
 
     logger.debug("Токены прошли проверку.")
 
-    try:
-        bot = telegram.Bot(token=TELEGRAM_TOKEN)
-        logger.debug("Подключение к боту успешно")
-
-    except telegram.error.TelegramError as error:
-        logger.exception(f"Не удалось подключиться к боту. Ошибка: {error}.")
+    bot = get_bot()
 
     current_timestamp: int = int(time.time())
     last_status: str = ""
-    last_error: str = ""
+
+    hw_last_error_associations: dict = {}
+    cur_hw_name: str = ""
 
     while True:
         try:
@@ -211,6 +222,8 @@ def main() -> None:
 
             if len(homeworks) != 0:
                 current_status: str = parse_status(homeworks[0])
+                cur_hw_name = current_status[46 : current_status.find(".zip")]
+
                 if current_status != last_status:
                     send_message(bot, current_status)
                     logger.debug(
@@ -222,10 +235,15 @@ def main() -> None:
                 logger.debug("Ничего нового...")
 
         except Exception as error:
-            if error != last_error:
+            if cur_hw_name:
+                if hw_last_error_associations[cur_hw_name] != error:
+                    logger.exception(error)
+                    send_message(bot, error)
+                    hw_last_error_associations[cur_hw_name] = error
+                    logger.debug(hw_last_error_associations)
+            else:
                 logger.exception(error)
                 send_message(bot, error)
-            last_error = error
 
         else:
             time.sleep(TELEGRAM_RETRY_TIME)
