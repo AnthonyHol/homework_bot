@@ -222,7 +222,7 @@ def main() -> None:
 
             if len(homeworks) != 0:
                 current_status: str = parse_status(homeworks[0])
-                cur_hw_name = current_status[46 : current_status.find(".zip")]
+                cur_hw_name = current_status[46:current_status.find(".zip")]
 
                 if current_status != last_status:
                     send_message(bot, current_status)
