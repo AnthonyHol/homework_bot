@@ -84,7 +84,7 @@ def get_api_answer(current_timestamp: int) -> dict:
         )
 
     except RequestException as exc:
-        raise APIRequestException(f"{homework_statuses.text}") from exc
+        raise APIRequestException("Не удалось получить ответ от API.") from exc
 
     try:
         if homework_statuses.status_code != HTTPStatus.OK:
@@ -174,7 +174,7 @@ def send_message(bot: telegram.Bot, message: str) -> None:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
 
     except telegram.error.TelegramError as error:
-        logger.error(
+        logger.exception(
             f'Не удалось отправить сообщение "{message}".\n Ошибка:"{error}"',
             exc_info=True,
         )
@@ -185,20 +185,26 @@ def send_message(bot: telegram.Bot, message: str) -> None:
 
 def main() -> None:
     """Основная логика работы бота."""
-    try:
-        if not check_tokens():
-            logger.critical(
-                "Были переданы не все требуемые переменные окружения"
-            )
-            raise NoExistToken()
 
-        logger.debug("Токены прошли проверку.")
+    if not check_tokens():
+        logger.critical("Были переданы не все требуемые переменные окружения")
+        raise NoExistToken()
+
+    logger.debug("Токены прошли проверку.")
+
+    try:
         bot = telegram.Bot(token=TELEGRAM_TOKEN)
         logger.debug("Подключение к боту успешно")
-        current_timestamp: int = int(time.time())
-        last_status: str = ""
 
-        while True:
+    except telegram.error.TelegramError as error:
+        logger.exception(f"Не удалось подключиться к боту. Ошибка: {error}.")
+
+    current_timestamp: int = int(time.time())
+    last_status: str = ""
+    last_error: str = ""
+
+    while True:
+        try:
             response = get_api_answer(current_timestamp)
             logger.debug(f'Ф-я "get_api_answer" вернула: \n{response}\n')
             homeworks = check_response(response)
@@ -215,14 +221,14 @@ def main() -> None:
             else:
                 logger.debug("Ничего нового...")
 
+        except Exception as error:
+            if error != last_error:
+                logger.exception(error)
+                send_message(bot, error)
+            last_error = error
+
+        else:
             time.sleep(TELEGRAM_RETRY_TIME)
-
-    except telegram.error.TelegramError as error:
-        logger.error(f"Не удалось подключиться к боту. Ошибка: {error}.")
-
-    except Exception as error:
-        logger.error(error)
-        send_message(bot, error)
 
 
 if __name__ == "__main__":
